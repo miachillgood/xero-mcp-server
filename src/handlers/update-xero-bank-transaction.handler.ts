@@ -29,7 +29,6 @@ async function getBankTransaction(bankTransactionId: string): Promise<BankTransa
 
 async function updateBankTransaction(
   bankTransactionId: string,
-  existingBankTransaction: BankTransaction,
   type?: BankTransactionType,
   contactId?: string,
   lineItems?: BankTransactionLineItem[],
@@ -37,13 +36,11 @@ async function updateBankTransaction(
   date?: string
 ): Promise<BankTransaction | undefined> {
   const bankTransaction: BankTransaction = {
-    ...existingBankTransaction,
-    bankTransactionID: bankTransactionId,
-    type: type ? BankTransaction.TypeEnum[type] : existingBankTransaction.type,
-    contact: contactId ? { contactID: contactId } : existingBankTransaction.contact,
-    lineItems: lineItems ? lineItems : existingBankTransaction.lineItems,
-    reference: reference ? reference : existingBankTransaction.reference,
-    date: date ? date : existingBankTransaction.date
+    ...(type ? { type: BankTransaction.TypeEnum[type] } : {}),
+    ...(contactId ? { contact: { contactID: contactId } } : {}),
+    ...(lineItems ? { lineItems } : {}),
+    ...(reference ? { reference } : {}),
+    ...(date ? { date } : {}),
   };
 
   const response = await xeroClient.accountingApi.updateBankTransaction(
@@ -75,7 +72,6 @@ export async function updateXeroBankTransaction(
 
     const updatedBankTransaction = await updateBankTransaction(
       bankTransactionId,
-      existingBankTransaction,
       type,
       contactId,
       lineItems,
