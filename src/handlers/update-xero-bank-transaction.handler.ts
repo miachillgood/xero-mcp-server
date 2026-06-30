@@ -35,7 +35,7 @@ async function updateBankTransaction(
   reference?: string,
   date?: string
 ): Promise<BankTransaction | undefined> {
-  const bankTransaction: BankTransaction = {
+  const bankTransaction: Partial<BankTransaction> = {
     ...(type ? { type: BankTransaction.TypeEnum[type] } : {}),
     ...(contactId ? { contact: { contactID: contactId } } : {}),
     ...(lineItems ? { lineItems } : {}),
@@ -46,7 +46,7 @@ async function updateBankTransaction(
   const response = await xeroClient.accountingApi.updateBankTransaction(
     xeroClient.tenantId, // xeroTenantId
     bankTransactionId, // bankTransactionID
-    { bankTransactions: [bankTransaction] }, // bankTransactions
+    { bankTransactions: [bankTransaction as BankTransaction] }, // bankTransactions
     undefined, // unitdp
     undefined, // idempotencyKey
     getClientHeaders() // options
