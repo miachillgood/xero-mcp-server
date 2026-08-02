@@ -118,6 +118,33 @@ describe("formatError", () => {
       const sdkError = { response: { statusCode: 502 } };
       expect(formatError(sdkError)).toBe("502 HTTP error");
     });
+
+    it("parses the xero-node stringified SDK error shape without leaking secrets", () => {
+      const sdkError = JSON.stringify({
+        response: {
+          statusCode: 400,
+          body: {
+            Type: "PostDataInvalidException",
+            Detail: "LineAmountTypes value is invalid.",
+          },
+          headers: { "set-cookie": "secret-cookie" },
+          request: {
+            headers: { authorization: "Bearer should-not-leak" },
+          },
+        },
+        body: {
+          Type: "PostDataInvalidException",
+          Detail: "LineAmountTypes value is invalid.",
+        },
+      });
+
+      const result = formatError(sdkError);
+
+      expect(result).toBe("400 HTTP error: LineAmountTypes value is invalid.");
+      expect(result).not.toContain("Bearer");
+      expect(result).not.toContain("should-not-leak");
+      expect(result).not.toContain("set-cookie");
+    });
   });
 
   describe("plain Error", () => {

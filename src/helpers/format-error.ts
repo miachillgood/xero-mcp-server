@@ -24,6 +24,17 @@ function isXeroSdkError(error: unknown): error is XeroSdkError {
   return typeof (response as { statusCode?: unknown }).statusCode === "number";
 }
 
+function parseStringifiedSdkError(error: string): XeroSdkError | null {
+  if (!error.trim().startsWith("{")) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(error);
+    return isXeroSdkError(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function formatHttpStatus(status: number): string {
   switch (status) {
     case 401:
@@ -48,6 +59,13 @@ function formatHttpStatus(status: number): string {
  * reach the response.
  */
 export function formatError(error: unknown): string {
+  if (typeof error === "string") {
+    const parsedSdkError = parseStringifiedSdkError(error);
+    if (parsedSdkError) {
+      return formatError(parsedSdkError);
+    }
+  }
+
   if (error instanceof AxiosError) {
     const status = error.response?.status;
     const detail = error.response?.data?.Detail;
