@@ -13,6 +13,10 @@ interface XeroSdkError {
       httpStatusCode?: string;
       problem?: XeroSdkProblem;
       Detail?: string;
+      ValidationErrors?: Array<{ Message?: string }>;
+      Elements?: Array<{
+        ValidationErrors?: Array<{ Message?: string }>;
+      }>;
     };
   };
 }
@@ -50,6 +54,22 @@ function formatHttpStatus(status: number): string {
   }
 }
 
+function collectValidationMessages(
+  body?: XeroSdkError["response"]["body"],
+): string[] {
+  if (!body) return [];
+
+  const topLevel = (body.ValidationErrors ?? [])
+    .map((item) => item.Message?.trim())
+    .filter((message): message is string => Boolean(message));
+  const nested = (body.Elements ?? [])
+    .flatMap((element) => element.ValidationErrors ?? [])
+    .map((item) => item.Message?.trim())
+    .filter((message): message is string => Boolean(message));
+
+  return [...new Set([...topLevel, ...nested])];
+}
+
 /**
  * Format error messages for return to the LLM.
  *
@@ -68,12 +88,15 @@ export function formatError(error: unknown): string {
 
   if (error instanceof AxiosError) {
     const status = error.response?.status;
-    const detail = error.response?.data?.Detail;
+    const data = error.response?.data as XeroSdkError["response"]["body"] | undefined;
+    const detail = data?.Detail;
+    const validationMessages = collectValidationMessages(data);
 
     if (status !== undefined) {
       const mapped = formatHttpStatus(status);
       if (mapped) return mapped;
     }
+    if (validationMessages.length > 0) return validationMessages.join("; ");
     return detail || "An error occurred while communicating with Xero.";
   }
 
@@ -83,6 +106,10 @@ export function formatError(error: unknown): string {
     if (mapped) return mapped;
 
     const body = error.response.body;
+    const validationMessages = collectValidationMessages(body);
+    if (validationMessages.length > 0) {
+      return validationMessages.join("; ");
+    }
     const problem = body?.problem;
     const title = problem?.title ?? body?.httpStatusCode ?? "HTTP error";
     const detail = problem?.detail ?? body?.Detail;

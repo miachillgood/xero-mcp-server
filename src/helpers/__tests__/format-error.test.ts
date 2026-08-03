@@ -145,6 +145,64 @@ describe("formatError", () => {
       expect(result).not.toContain("should-not-leak");
       expect(result).not.toContain("set-cookie");
     });
+
+    it("extracts nested validation messages from SDK errors", () => {
+      const sdkError = {
+        response: {
+          statusCode: 400,
+          body: {
+            httpStatusCode: "ValidationException",
+            Elements: [
+              {
+                ValidationErrors: [
+                  { Message: "The TaxType code 'GST on Income' is not valid" },
+                ],
+              },
+              {
+                ValidationErrors: [{ Message: "Account code '9999' is not valid" }],
+              },
+            ],
+          },
+        },
+        request: {
+          headers: { authorization: "Bearer eyJSECRET" },
+        },
+      };
+
+      const result = formatError(sdkError);
+
+      expect(result).toBe(
+        "The TaxType code 'GST on Income' is not valid; Account code '9999' is not valid",
+      );
+      expect(result).not.toContain("Bearer");
+      expect(result).not.toContain("eyJSECRET");
+    });
+
+    it("extracts nested validation messages from stringified SDK errors", () => {
+      const sdkError = JSON.stringify({
+        response: {
+          statusCode: 400,
+          body: {
+            Elements: [
+              {
+                ValidationErrors: [
+                  { Message: "The TaxType code 'GST on Income' is not valid" },
+                ],
+              },
+            ],
+          },
+        },
+        request: {
+          headers: { authorization: "Bearer should-not-leak" },
+        },
+      });
+
+      const result = formatError(sdkError);
+
+      expect(result).toBe("The TaxType code 'GST on Income' is not valid");
+      expect(result).not.toContain("Bearer");
+      expect(result).not.toContain("should-not-leak");
+    });
   });
 
   describe("plain Error", () => {
